@@ -9,16 +9,25 @@ const { initSession, isEmail } = require('../utils/utils');
 
 const router = express.Router();
 
+// resgistrar novo usuario
 router.post('/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const {
+      email,
+      password,
+      name
+    } = req.body;
     if (!isEmail(email)) {
       throw new Error('Email must be a valid email address.');
     }
     if (typeof password !== 'string') {
       throw new Error('Password must be a string.');
     }
-    const user = new User({ email, password });
+    const user = new User({
+      email,
+      password,
+      name
+    });
     const persistedUser = await user.save();
     const userId = persistedUser._id;
 
@@ -50,6 +59,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// iniciar sessao
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -111,10 +121,12 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', authenticate, async (req, res) => {
+// autenticar usuario
+router.get('/me', authenticate, csrfCheck, async (req, res) => {
   try {
     const { userId } = req.session;
-    const user = await User.findById({ _id: userId }, { email: 1, _id: 0 });
+    console.log(req.session)
+    const user = await User.findById({ _id: userId }, { email: 1, name: 1, _id: 0,  });
 
     res.json({
       title: 'Authentication successful',
@@ -134,6 +146,30 @@ router.get('/me', authenticate, async (req, res) => {
   }
 });
 
+// listar todos usuarios
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const { userId } = req.session;
+    const users = await User.find({});
+    console.log(users, userId)
+    res.json({
+      results: users
+    })
+
+  } catch (err) {
+    res.status(401).json({
+      errors: [
+        {
+          title: 'Unauthorized',
+          detail: 'Not authorized to access this route',
+          errorMessage: err.message,
+        },
+      ],
+    });
+  }
+});
+
+// deletar usuario
 router.delete('/me', authenticate, csrfCheck, async (req, res) => {
   try {
     const { userId } = req.session;
@@ -168,6 +204,7 @@ router.delete('/me', authenticate, csrfCheck, async (req, res) => {
   }
 });
 
+// encerrar sessao
 router.put('/logout', authenticate, csrfCheck, async (req, res) => {
   try {
     const { session } = req;
